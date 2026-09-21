@@ -13,6 +13,5 @@ func main() {
 	args := os.Args[1:]
 	fmt.Printf("Аргументы CLI (%d): %v\n", len(args), args)
 
-	// 3. Вывод текущей версии Go
 	fmt.Printf("Версия Go: %s\n", runtime.Version())
 }
