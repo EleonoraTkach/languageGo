@@ -47,10 +47,9 @@ func NewStorage() *Storage {
 3. Если для транзакции есть категория и период бюджета, но сумма превышает бюджет, то выбрасываем ошибку
 */
 func (s *Storage) AddTransaction(tx m.Transaction) error {
-	if tx.Amount <= 0 {
-		return errors.New("transaction amount must be greater than zero")
+	if err := tx.Validate(); err != nil {
+		return err
 	}
-
 	budgets, exists := s.budgets[tx.Category]
 
 	if !exists {
@@ -105,18 +104,24 @@ func (s *Storage) ListBudgets() []m.Budget {
 	return budgets
 }
 
-func (s *Storage) SetBudget(b m.Budget) {
+func (s *Storage) SetBudget(b m.Budget) error {
+
+	if err := b.Validate(); err != nil {
+		return err
+	}
+
 	budgets := s.budgets[b.Category]
 
 	for i, budget := range budgets {
 		if budget.From.Equal(b.From) && budget.To.Equal(b.To) {
 			budgets[i] = b
 			s.budgets[b.Category] = budgets
-			return
+			return nil
 		}
 	}
 
 	s.budgets[b.Category] = append(budgets, b)
+	return nil
 }
 
 func (s *Storage) LoadBudgets(r io.Reader) error {

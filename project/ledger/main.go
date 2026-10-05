@@ -123,10 +123,41 @@ func runBudgetScenario() (*repository.Storage, error) {
 	return storage, nil
 }
 
+func CheckValid(v m.Validatable) error {
+	return v.Validate()
+}
+
 func main() {
 	_, err := runBudgetScenario()
 
 	if err != nil {
 		fmt.Println("Ошибка выполнения:", err)
+	}
+
+	transaction := m.Transaction{
+		ID:          1,
+		Amount:      100,
+		Category:    "",
+		Description: "Lunch",
+		Date:        time.Now(),
+	}
+
+	budget := m.Budget{
+		Category: "Food",
+		Limit:    -1,
+		From:     time.Now(),
+		To:       time.Now().AddDate(0, 1, 0),
+	}
+
+	if err := CheckValid(transaction); err != nil {
+		fmt.Println("Transaction:", err)
+	} else {
+		fmt.Println("Transaction is valid")
+	}
+
+	if err := CheckValid(budget); err != nil {
+		fmt.Println("Budget:", err)
+	} else {
+		fmt.Println("Budget is valid")
 	}
 }
