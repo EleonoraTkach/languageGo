@@ -141,3 +141,9 @@ func (s *Storage) LoadBudgets(r io.Reader) error {
 
 	return nil
 }
+
+// Reset очищает транзакции и бюджеты в памяти.
+func (s *Storage) Reset() {
+	s.transactions = nil
+	s.budgets = make(map[string][]m.Budget)
+}

@@ -1,0 +1,490 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>ledger: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">ledger/main.go (0.0%)</option>
+				
+				<option value="file1">ledger/models/budget.go (77.8%)</option>
+				
+				<option value="file2">ledger/models/transaction.go (85.7%)</option>
+				
+				<option value="file3">ledger/repository/memory.go (54.5%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package main
+
+import (
+        "bufio"
+        "fmt"
+        "os"
+        "time"
+
+        m "ledger/models"
+        "ledger/repository"
+)
+
+func runBudgetScenario() (*repository.Storage, error) {
+        <span class="cov0" title="0">storage := repository.NewStorage()
+</span>
+        <span class="cov0" title="0">storage.SetBudget(m.Budget{
+                Category: "еда",
+                Limit:    5000,
+                From:     time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC),
+                To:       time.Date(2026, 10, 31, 23, 59, 59, 0, time.UTC),
+        })
+</span>
+        <span class="cov0" title="0">fmt.Println("Бюджет: 5000")
+</span>
+        <span class="cov0" title="0">file, err := os.Open("budgets.json")
+        if err != nil </span>{
+                <span class="cov0" title="0">fmt.Println("Ошибка открытия budgets.json:", err)
+</span>        } else {
+                <span class="cov0" title="0">defer file.Close()
+</span>
+                <span class="cov0" title="0">reader := bufio.NewReader(file)
+</span>
+                <span class="cov0" title="0">if err := storage.LoadBudgets(reader); err != nil </span>{
+                        <span class="cov0" title="0">fmt.Println("Ошибка загрузки бюджетов:", err)
+</span>                } else {
+                        <span class="cov0" title="0">fmt.Println("Бюджеты из файла успешно загружены")
+</span>                }
+        }
+
+        <span class="cov0" title="0">fmt.Println("Бюджеты успешно загружены")
+        budgets := storage.ListBudgets()
+</span>
+        <span class="cov0" title="0">fmt.Println("Количество бюджетов:", len(budgets))
+        fmt.Println("Список бюджетов:")
+</span>
+        <span class="cov0" title="0">for _, budget := range budgets </span>{
+                <span class="cov0" title="0">fmt.Printf(
+                        "Категория: %s, Лимит: %.2f, Период: %s - %s\n",
+                        budget.Category,
+                        budget.Limit,
+                        budget.From.Format("02.01.2006"),
+                        budget.To.Format("02.01.2006"),
+                )
+</span>        }
+
+        <span class="cov0" title="0">err = storage.AddTransaction(m.Transaction{
+                Amount:      3000,
+                Category:    "еда",
+                Description: "продукты",
+                Date:        time.Date(2026, 10, 10, 12, 0, 0, 0, time.UTC),
+        })
+</span>
+        <span class="cov0" title="0">if err != nil </span>{
+                <span class="cov0" title="0">fmt.Println("Первая транзакция: ошибка:", err)
+</span>        } else {
+                <span class="cov0" title="0">fmt.Println("Первая транзакция: успешно добавлена")
+</span>        }
+
+        <span class="cov0" title="0">err = storage.AddTransaction(m.Transaction{
+                Amount:      2500,
+                Category:    "еда",
+                Description: "ресторан",
+                Date:        time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC),
+        })
+</span>
+        <span class="cov0" title="0">if err != nil </span>{
+                <span class="cov0" title="0">fmt.Println("Вторая транзакция: ошибка:", err)
+</span>        } else {
+                <span class="cov0" title="0">fmt.Println("Вторая транзакция: успешно добавлена")
+</span>        }
+
+        <span class="cov0" title="0">err = storage.AddTransaction(m.Transaction{
+                Amount:      2000,
+                Category:    "еда",
+                Description: "продукты в ноябре",
+                Date:        time.Date(2026, 11, 5, 12, 0, 0, 0, time.UTC),
+        })
+</span>
+        <span class="cov0" title="0">if err != nil </span>{
+                <span class="cov0" title="0">fmt.Println("Транзакция вне периода: ошибка:", err)
+</span>        } else {
+                <span class="cov0" title="0">fmt.Println("Транзакция вне периода: успешно добавлена")
+</span>        }
+
+        <span class="cov0" title="0">err = storage.AddTransaction(m.Transaction{
+                Amount:      4000,
+                Category:    "развлечения",
+                Description: "кино",
+                Date:        time.Date(2026, 10, 20, 19, 0, 0, 0, time.UTC),
+        })
+</span>
+        <span class="cov0" title="0">if err != nil </span>{
+                <span class="cov0" title="0">fmt.Println("Транзакция без бюджета: ошибка:", err)
+</span>        } else {
+                <span class="cov0" title="0">fmt.Println("Транзакция без бюджета: успешно добавлена")
+</span>        }
+
+        <span class="cov0" title="0">transactions := storage.ListTransactions()
+</span>
+        <span class="cov0" title="0">fmt.Println("Количество сохранённых транзакций:", len(transactions))
+</span>
+        <span class="cov0" title="0">fmt.Println("Список транзакций:")
+        for _, tx := range transactions </span>{
+                <span class="cov0" title="0">fmt.Printf(
+                        "Категория: %s, Сумма: %.2f, Описание: %s, Дата: %s\n",
+                        tx.Category,
+                        tx.Amount,
+                        tx.Description,
+                        tx.Date.Format("02.01.2006 15:04"),
+                )
+</span>        }
+
+        <span class="cov0" title="0">return storage, nil</span>
+}
+
+func CheckValid(v m.Validatable) error {
+        <span class="cov0" title="0">return v.Validate()
+</span>}
+
+func main() {
+        <span class="cov0" title="0">_, err := runBudgetScenario()
+</span>
+        <span class="cov0" title="0">if err != nil </span>{
+                <span class="cov0" title="0">fmt.Println("Ошибка выполнения:", err)
+</span>        }
+
+        <span class="cov0" title="0">transaction := m.Transaction{
+                ID:          1,
+                Amount:      100,
+                Category:    "",
+                Description: "Lunch",
+                Date:        time.Now(),
+</span>        }
+
+        <span class="cov0" title="0">budget := m.Budget{
+                Category: "Food",
+                Limit:    -1,
+                From:     time.Now(),
+                To:       time.Now().AddDate(0, 1, 0),
+</span>        }
+
+        <span class="cov0" title="0">if err := CheckValid(transaction); err != nil </span>{
+                <span class="cov0" title="0">fmt.Println("Transaction:", err)
+</span>        } else {
+                <span class="cov0" title="0">fmt.Println("Transaction is valid")
+</span>        }
+
+        <span class="cov0" title="0">if err := CheckValid(budget); err != nil </span>{
+                <span class="cov0" title="0">fmt.Println("Budget:", err)
+</span>        } else {
+                <span class="cov0" title="0">fmt.Println("Budget is valid")
+</span>        }
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package models
+
+import (
+        "errors"
+        "time"
+)
+
+type Budget struct {
+        Category string    `json:"category"`
+        Limit    float64   `json:"limit"`
+        From     time.Time `json:"from"`
+        To       time.Time `json:"to"`
+}
+
+func (b Budget) Validate() error {
+        <span class="cov8" title="1">if b.Limit &lt;= 0 </span>{
+                <span class="cov8" title="1">return errors.New("limit must be greater than 0")
+</span>        }
+
+        <span class="cov8" title="1">if b.Category == "" </span>{
+                <span class="cov8" title="1">return errors.New("category must not be empty")
+</span>        }
+
+        <span class="cov8" title="1">if b.From.IsZero() </span>{
+                <span class="cov0" title="0">return errors.New("from date is required")
+</span>        }
+
+        <span class="cov8" title="1">if b.To.IsZero() </span>{
+                <span class="cov0" title="0">return errors.New("to date is required")
+</span>        }
+
+        <span class="cov8" title="1">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package models
+
+import (
+        "errors"
+        "time"
+)
+
+type Transaction struct {
+        ID          int       `json:"id"`
+        Amount      float64   `json:"amount"`
+        Category    string    `json:"category"`
+        Description string    `json:"description"`
+        Date        time.Time `json:"date"`
+}
+
+func (t Transaction) Validate() error {
+        <span class="cov8" title="1">if t.Amount &lt;= 0 </span>{
+                <span class="cov8" title="1">return errors.New("amount must be greater than 0")
+</span>        }
+
+        <span class="cov8" title="1">if t.Category == "" </span>{
+                <span class="cov8" title="1">return errors.New("category must not be empty")
+</span>        }
+
+        <span class="cov8" title="1">if t.Date.IsZero() </span>{
+                <span class="cov0" title="0">return errors.New("date must not be empty")
+</span>        }
+
+        <span class="cov8" title="1">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package repository
+
+import (
+        "encoding/json"
+        "errors"
+        "fmt"
+        "io"
+        m "ledger/models"
+        "time"
+)
+
+var ErrBudgetExceeded = errors.New("budget exceeded")
+
+type Storage struct {
+        transactions []m.Transaction
+        budgets      map[string][]m.Budget
+}
+
+/*
+Требование по чеклисту (в задании пункт 2) добавить по умолчанию, в дальшейшем УДАЛИТЬ
+*/
+func NewStorage() *Storage {
+        <span class="cov8" title="1">return &amp;Storage{
+                transactions: make([]m.Transaction, 0),
+                budgets: map[string][]m.Budget{
+                        "еда": {
+                                {
+                                        Category: "еда",
+                                        Limit:    5000,
+                                        From:     time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC),
+                                        To:       time.Date(2026, 10, 31, 23, 59, 59, 0, time.UTC),
+                                },
+                        },
+                        "транспорт": {
+                                {
+                                        Category: "транспорт",
+                                        Limit:    3000,
+                                        From:     time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC),
+                                        To:       time.Date(2026, 10, 31, 23, 59, 59, 0, time.UTC),
+                                },
+                        },
+                },
+</span>        }
+}
+
+/*
+1. Транзакция должна быть больше 0
+2. Если для транзакции нет категории или периода бюджета, то добавляем
+3. Если для транзакции есть категория и период бюджета, но сумма превышает бюджет, то выбрасываем ошибку
+*/
+func (s *Storage) AddTransaction(tx m.Transaction) error {
+        <span class="cov8" title="1">if err := tx.Validate(); err != nil </span>{
+                <span class="cov0" title="0">return err
+</span>        }
+        <span class="cov8" title="1">budgets, exists := s.budgets[tx.Category]
+</span>
+        <span class="cov8" title="1">if !exists </span>{
+                <span class="cov0" title="0">s.transactions = append(s.transactions, tx)
+                return nil
+</span>        }
+
+        <span class="cov8" title="1">for _, budget := range budgets </span>{
+                <span class="cov8" title="1">if tx.Date.Before(budget.From) || tx.Date.After(budget.To) </span>{
+                        <span class="cov0" title="0">continue</span>
+                }
+
+                <span class="cov8" title="1">var total float64
+</span>
+                <span class="cov8" title="1">for _, existingTx := range s.transactions </span>{
+                        <span class="cov8" title="1">if existingTx.Category != tx.Category </span>{
+                                <span class="cov0" title="0">continue</span>
+                        }
+
+                        <span class="cov8" title="1">if existingTx.Date.Before(budget.From) ||
+                                existingTx.Date.After(budget.To) </span>{
+                                <span class="cov0" title="0">continue</span>
+                        }
+
+                        <span class="cov8" title="1">total += existingTx.Amount</span>
+                }
+
+                <span class="cov8" title="1">if total+tx.Amount &gt; budget.Limit </span>{
+                        <span class="cov8" title="1">return ErrBudgetExceeded
+</span>                }
+        }
+
+        <span class="cov8" title="1">s.transactions = append(s.transactions, tx)
+</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+func (s *Storage) ListTransactions() []m.Transaction {
+        <span class="cov8" title="1">copiedTransactions := make([]m.Transaction, len(s.transactions))
+        copy(copiedTransactions, s.transactions)
+</span>
+        <span class="cov8" title="1">return copiedTransactions
+</span>}
+
+func (s *Storage) ListBudgets() []m.Budget {
+        <span class="cov0" title="0">var budgets []m.Budget
+</span>
+        <span class="cov0" title="0">for _, categoryBudgets := range s.budgets </span>{
+                <span class="cov0" title="0">budgets = append(budgets, categoryBudgets...)
+</span>        }
+
+        <span class="cov0" title="0">return budgets</span>
+}
+
+func (s *Storage) SetBudget(b m.Budget) error {
+
+        <span class="cov8" title="1">if err := b.Validate(); err != nil </span>{
+                <span class="cov0" title="0">return err
+</span>        }
+
+        <span class="cov8" title="1">budgets := s.budgets[b.Category]
+</span>
+        <span class="cov8" title="1">for i, budget := range budgets </span>{
+                <span class="cov0" title="0">if budget.From.Equal(b.From) &amp;&amp; budget.To.Equal(b.To) </span>{
+                        <span class="cov0" title="0">budgets[i] = b
+                        s.budgets[b.Category] = budgets
+                        return nil
+</span>                }
+        }
+
+        <span class="cov8" title="1">s.budgets[b.Category] = append(budgets, b)
+        return nil</span>
+}
+
+func (s *Storage) LoadBudgets(r io.Reader) error {
+        <span class="cov0" title="0">var budgets []m.Budget
+</span>
+        <span class="cov0" title="0">decoder := json.NewDecoder(r)
+</span>
+        <span class="cov0" title="0">if err := decoder.Decode(&amp;budgets); err != nil </span>{
+                <span class="cov0" title="0">return fmt.Errorf("failed to parse budgets: %w", err)
+</span>        }
+
+        <span class="cov0" title="0">for _, budget := range budgets </span>{
+                <span class="cov0" title="0">s.SetBudget(budget)
+</span>        }
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+// Reset очищает транзакции и бюджеты в памяти.
+func (s *Storage) Reset() {
+        <span class="cov8" title="1">s.transactions = nil
+        s.budgets = make(map[string][]m.Budget)
+</span>}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

@@ -1,0 +1,448 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>api-gateway: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">api-gateway/handlers.go (75.4%)</option>
+				
+				<option value="file1">api-gateway/internal/api/budget.go (0.0%)</option>
+				
+				<option value="file2">api-gateway/internal/api/transaction.go (0.0%)</option>
+				
+				<option value="file3">api-gateway/main.go (0.0%)</option>
+				
+				<option value="file4">api-gateway/middleware.go (100.0%)</option>
+				
+				<option value="file5">api-gateway/response.go (85.7%)</option>
+				
+				<option value="file6">api-gateway/routes.go (81.8%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package main
+
+import (
+        "encoding/json"
+        "errors"
+        "log"
+        "net/http"
+
+        api "api-gateway/internal/api"
+        rep "ledger/repository"
+)
+
+type Server struct {
+        storage *rep.Storage
+}
+
+func NewServer(storage *rep.Storage) *Server {
+        <span class="cov8" title="1">return &amp;Server{
+                storage: storage,
+</span>        }
+}
+
+func pingHandler(w http.ResponseWriter, r *http.Request) {
+        <span class="cov0" title="0">if r.Method != http.MethodGet </span>{
+                <span class="cov0" title="0">w.Header().Set("Allow", http.MethodGet)
+                writeJSON(w, http.StatusMethodNotAllowed, map[string]string{
+                        "error": "method not allowed",
+                })
+                return
+</span>        }
+
+        <span class="cov0" title="0">w.WriteHeader(http.StatusOK)
+        _, _ = w.Write([]byte("pong"))</span>
+}
+
+func notImplementedHandler(w http.ResponseWriter, r *http.Request) {
+        <span class="cov0" title="0">writeJSON(w, http.StatusNotImplemented, map[string]string{
+                "error": "not implemented",
+        })
+</span>}
+
+func (s *Server) createTransactionHandler(w http.ResponseWriter, r *http.Request) {
+        <span class="cov8" title="1">var req api.CreateTransactionRequest
+</span>
+        <span class="cov8" title="1">if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span>{
+                <span class="cov8" title="1">writeJSON(w, http.StatusBadRequest, map[string]string{
+                        "error": "invalid JSON",
+                })
+                return
+</span>        }
+
+        <span class="cov8" title="1">tx := req.ToTransaction()
+</span>
+        <span class="cov8" title="1">if err := tx.Validate(); err != nil </span>{
+                <span class="cov0" title="0">writeJSON(w, http.StatusBadRequest, map[string]string{
+                        "error": err.Error(),
+                })
+                return
+</span>        }
+
+        <span class="cov8" title="1">if err := s.storage.AddTransaction(tx); err != nil </span>{
+                <span class="cov8" title="1">if errors.Is(err, rep.ErrBudgetExceeded) </span>{
+                        <span class="cov8" title="1">writeJSON(w, http.StatusConflict, map[string]string{
+                                "error": "budget exceeded",
+                        })
+                        return
+</span>                }
+
+                <span class="cov0" title="0">log.Printf("add transaction: %v", err)
+                writeJSON(w, http.StatusInternalServerError, map[string]string{
+                        "error": "internal server error",
+                })
+                return</span>
+        }
+
+        <span class="cov8" title="1">writeJSON(w, http.StatusCreated, api.NewTransactionResponse(tx))</span>
+}
+
+func (s *Server) listTransactionsHandler(
+        w http.ResponseWriter,
+        r *http.Request,
+) {
+        <span class="cov8" title="1">transactions := s.storage.ListTransactions()
+</span>
+        <span class="cov8" title="1">response := make([]api.TransactionResponse, 0, len(transactions))
+        for _, tx := range transactions </span>{
+                <span class="cov8" title="1">response = append(response, api.NewTransactionResponse(tx))
+</span>        }
+
+        <span class="cov8" title="1">writeJSON(w, http.StatusOK, response)</span>
+}
+
+func (s *Server) createBudgetHandler(
+        w http.ResponseWriter,
+        r *http.Request,
+) {
+        <span class="cov8" title="1">var req api.CreateBudgetRequest
+</span>
+        <span class="cov8" title="1">if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span>{
+                <span class="cov8" title="1">writeJSON(w, http.StatusBadRequest, map[string]string{
+                        "error": "invalid JSON",
+                })
+                return
+</span>        }
+
+        <span class="cov8" title="1">budget := req.ToBudget()
+</span>
+        <span class="cov8" title="1">if err := budget.Validate(); err != nil </span>{
+                <span class="cov8" title="1">writeJSON(w, http.StatusBadRequest, map[string]string{
+                        "error": err.Error(),
+                })
+                return
+</span>        }
+
+        <span class="cov8" title="1">if err := s.storage.SetBudget(budget); err != nil </span>{
+                <span class="cov0" title="0">log.Printf("set budget: %v", err)
+                writeJSON(w, http.StatusInternalServerError, map[string]string{
+                        "error": "internal server error",
+                })
+                return
+</span>        }
+
+        <span class="cov8" title="1">writeJSON(w, http.StatusCreated, api.NewBudgetResponse(budget))</span>
+}
+
+func (s *Server) listBudgetsHandler(
+        w http.ResponseWriter,
+        r *http.Request,
+) {
+        <span class="cov8" title="1">budgets := s.storage.ListBudgets()
+</span>
+        <span class="cov8" title="1">response := make([]api.BudgetResponse, 0, len(budgets))
+        for _, budget := range budgets </span>{
+                <span class="cov8" title="1">response = append(response, api.NewBudgetResponse(budget))
+</span>        }
+
+        <span class="cov8" title="1">writeJSON(w, http.StatusOK, response)</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package api
+
+import (
+        "time"
+
+        m "ledger/models"
+)
+
+type CreateBudgetRequest struct {
+        Category string    `json:"category"`
+        Limit    float64   `json:"limit"`
+        From     time.Time `json:"from"`
+        To       time.Time `json:"to"`
+}
+
+type BudgetResponse struct {
+        Category string    `json:"category"`
+        Limit    float64   `json:"limit"`
+        From     time.Time `json:"from"`
+        To       time.Time `json:"to"`
+}
+
+func (r CreateBudgetRequest) ToBudget() m.Budget {
+        <span class="cov0" title="0">return m.Budget{
+                Category: r.Category,
+                Limit:    r.Limit,
+                From:     r.From,
+                To:       r.To,
+</span>        }
+}
+
+func NewBudgetResponse(b m.Budget) BudgetResponse {
+        <span class="cov0" title="0">return BudgetResponse{
+                Category: b.Category,
+                Limit:    b.Limit,
+                From:     b.From,
+                To:       b.To,
+</span>        }
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package api
+
+import (
+        "time"
+
+        m "ledger/models"
+)
+
+type CreateTransactionRequest struct {
+        Amount      float64   `json:"amount"`
+        Category    string    `json:"category"`
+        Description string    `json:"description"`
+        Date        time.Time `json:"date"`
+}
+
+type TransactionResponse struct {
+        ID          string    `json:"id"`
+        Amount      float64   `json:"amount"`
+        Category    string    `json:"category"`
+        Description string    `json:"description"`
+        Date        time.Time `json:"date"`
+}
+
+func (r CreateTransactionRequest) ToTransaction() m.Transaction {
+        <span class="cov0" title="0">return m.Transaction{
+                Amount:      r.Amount,
+                Category:    r.Category,
+                Description: r.Description,
+                Date:        r.Date,
+</span>        }
+}
+
+func NewTransactionResponse(t m.Transaction) TransactionResponse {
+        <span class="cov0" title="0">return TransactionResponse{
+                Amount:      t.Amount,
+                Category:    t.Category,
+                Description: t.Description,
+                Date:        t.Date,
+</span>        }
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package main
+
+import (
+        "log"
+        "net/http"
+
+        rep "ledger/repository"
+)
+
+func main() {
+        <span class="cov0" title="0">storage := rep.NewStorage()
+        server := NewServer(storage)
+        router := NewRouter(server)
+</span>
+        <span class="cov0" title="0">log.Println("Gateway listening on :8080")
+        log.Fatal(http.ListenAndServe(":8080", router.SetupRoutes()))
+</span>}
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package main
+
+import (
+        "log"
+        "net/http"
+        "time"
+)
+
+func loggingMiddleware(next http.Handler) http.Handler {
+        <span class="cov8" title="1">return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span>{
+                <span class="cov8" title="1">start := time.Now()
+</span>
+                <span class="cov8" title="1">next.ServeHTTP(w, r)
+</span>
+                <span class="cov8" title="1">log.Printf(
+                        "%s %s duration=%s",
+                        r.Method,
+                        r.URL.Path,
+                        time.Since(start),
+                )
+</span>        })
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">package main
+
+import (
+        "encoding/json"
+        "log"
+        "net/http"
+)
+
+func writeJSON(w http.ResponseWriter, status int, data any) {
+        <span class="cov8" title="1">w.Header().Set("Content-Type", "application/json; charset=utf-8")
+        w.WriteHeader(status)
+</span>
+        <span class="cov8" title="1">if err := json.NewEncoder(w).Encode(data); err != nil </span>{
+                <span class="cov0" title="0">log.Printf("encode JSON response: %v", err)
+</span>        }
+}
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package main
+
+import "net/http"
+
+type Router struct {
+        server *Server
+}
+
+func NewRouter(server *Server) *Router {
+        <span class="cov8" title="1">return &amp;Router{
+                server: server,
+</span>        }
+}
+
+func (rt *Router) SetupRoutes() http.Handler {
+        <span class="cov8" title="1">mux := http.NewServeMux()
+</span>
+        <span class="cov8" title="1">mux.HandleFunc("/ping", pingHandler)
+</span>
+        <span class="cov8" title="1">mux.HandleFunc("/api/transactions", func(w http.ResponseWriter, r *http.Request) </span>{
+                <span class="cov8" title="1">switch r.Method </span>{
+                case http.MethodPost:
+                        <span class="cov8" title="1">rt.server.createTransactionHandler(w, r)</span>
+                case http.MethodGet:
+                        <span class="cov8" title="1">rt.server.listTransactionsHandler(w, r)</span>
+                default:
+                        <span class="cov0" title="0">w.Header().Set("Allow", "GET, POST")
+                        writeJSON(w, http.StatusMethodNotAllowed, map[string]string{
+                                "error": "method not allowed",
+                        })</span>
+                }
+        })
+
+        <span class="cov8" title="1">mux.HandleFunc("/api/budgets", func(w http.ResponseWriter, r *http.Request) </span>{
+                <span class="cov8" title="1">switch r.Method </span>{
+                case http.MethodGet:
+                        <span class="cov8" title="1">rt.server.listBudgetsHandler(w, r)</span>
+                case http.MethodPost:
+                        <span class="cov8" title="1">rt.server.createBudgetHandler(w, r)</span>
+                default:
+                        <span class="cov0" title="0">w.Header().Set("Allow", "GET, POST")
+                        writeJSON(w, http.StatusMethodNotAllowed, map[string]string{
+                                "error": "method not allowed",
+                        })</span>
+                }
+        })
+
+        <span class="cov8" title="1">return loggingMiddleware(mux)</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
