@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+var ErrBudgetExceeded = errors.New("budget exceeded")
+
 type Storage struct {
 	transactions []m.Transaction
 	budgets      map[string][]m.Budget
@@ -78,7 +80,7 @@ func (s *Storage) AddTransaction(tx m.Transaction) error {
 		}
 
 		if total+tx.Amount > budget.Limit {
-			return errors.New("budget exceeded")
+			return ErrBudgetExceeded
 		}
 	}
 
