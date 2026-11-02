@@ -4,10 +4,13 @@ import (
 	"log"
 	"net/http"
 
+	"ledger/db"
 	rep "ledger/repository"
 )
 
 func main() {
+	db.InitDB()
+
 	storage := rep.NewStorage()
 	server := NewServer(storage)
 	router := NewRouter(server)

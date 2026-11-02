@@ -80,7 +80,15 @@ func (s *Server) listTransactionsHandler(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	transactions := s.storage.ListTransactions()
+	transactions, err := s.storage.ListTransactions()
+	if err != nil {
+		http.Error(
+			w,
+			"Не удалось получить список транзакций",
+			http.StatusInternalServerError,
+		)
+		return
+	}
 
 	response := make([]api.TransactionResponse, 0, len(transactions))
 	for _, tx := range transactions {
@@ -127,7 +135,16 @@ func (s *Server) listBudgetsHandler(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	budgets := s.storage.ListBudgets()
+	budgets, err := s.storage.ListBudgets()
+
+	if err != nil {
+		http.Error(
+			w,
+			"Не удалось получить список бюджетов",
+			http.StatusInternalServerError,
+		)
+		return
+	}
 
 	response := make([]api.BudgetResponse, 0, len(budgets))
 	for _, budget := range budgets {

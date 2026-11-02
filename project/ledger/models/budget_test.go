@@ -2,8 +2,7 @@ package models
 
 import (
 	"testing"
-	"time"
-)
+	/*"time"*/)
 
 func TestBudgetValidate(t *testing.T) {
 	t.Parallel()
@@ -18,8 +17,8 @@ func TestBudgetValidate(t *testing.T) {
 			budget: Budget{
 				Category: "еда",
 				Limit:    5000,
-				From:     time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC),
-				To:       time.Date(2026, 10, 31, 23, 59, 59, 0, time.UTC),
+				/*From:     time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC),
+				To:       time.Date(2026, 10, 31, 23, 59, 59, 0, time.UTC),*/
 			},
 			wantErr: false,
 		},
@@ -28,8 +27,8 @@ func TestBudgetValidate(t *testing.T) {
 			budget: Budget{
 				Category: "еда",
 				Limit:    0,
-				From:     time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC),
-				To:       time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC),
+				/*From:     time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC),
+				To:       time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC),*/
 			},
 			wantErr: true,
 		},
@@ -38,8 +37,8 @@ func TestBudgetValidate(t *testing.T) {
 			budget: Budget{
 				Category: "еда",
 				Limit:    -1,
-				From:     time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC),
-				To:       time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC),
+				/*From:     time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC),
+				To:       time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC),*/
 			},
 			wantErr: true,
 		},
@@ -47,8 +46,8 @@ func TestBudgetValidate(t *testing.T) {
 			name: "empty category",
 			budget: Budget{
 				Limit: 5000,
-				From:  time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC),
-				To:    time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC),
+				/*From:  time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC),
+				To:    time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC),*/
 			},
 			wantErr: true,
 		},

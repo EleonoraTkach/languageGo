@@ -3,9 +3,11 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
+	"ledger/db"
 	m "ledger/models"
 	"ledger/repository"
 )
@@ -16,8 +18,8 @@ func runBudgetScenario() (*repository.Storage, error) {
 	storage.SetBudget(m.Budget{
 		Category: "еда",
 		Limit:    5000,
-		From:     time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC),
-		To:       time.Date(2026, 10, 31, 23, 59, 59, 0, time.UTC),
+		/*From:     time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC),
+		To:       time.Date(2026, 10, 31, 23, 59, 59, 0, time.UTC),*/
 	})
 
 	fmt.Println("Бюджет: 5000")
@@ -38,7 +40,7 @@ func runBudgetScenario() (*repository.Storage, error) {
 	}
 
 	fmt.Println("Бюджеты успешно загружены")
-	budgets := storage.ListBudgets()
+	/*budgets := storage.ListBudgets()
 
 	fmt.Println("Количество бюджетов:", len(budgets))
 	fmt.Println("Список бюджетов:")
@@ -51,7 +53,7 @@ func runBudgetScenario() (*repository.Storage, error) {
 			budget.From.Format("02.01.2006"),
 			budget.To.Format("02.01.2006"),
 		)
-	}
+	}*/
 
 	err = storage.AddTransaction(m.Transaction{
 		Amount:      3000,
@@ -105,7 +107,7 @@ func runBudgetScenario() (*repository.Storage, error) {
 		fmt.Println("Транзакция без бюджета: успешно добавлена")
 	}
 
-	transactions := storage.ListTransactions()
+	/*transactions := storage.ListTransactions()
 
 	fmt.Println("Количество сохранённых транзакций:", len(transactions))
 
@@ -118,7 +120,7 @@ func runBudgetScenario() (*repository.Storage, error) {
 			tx.Description,
 			tx.Date.Format("02.01.2006 15:04"),
 		)
-	}
+	}*/
 
 	return storage, nil
 }
@@ -127,7 +129,7 @@ func CheckValid(v m.Validatable) error {
 	return v.Validate()
 }
 
-func main() {
+func TestRun() {
 	_, err := runBudgetScenario()
 
 	if err != nil {
@@ -145,8 +147,8 @@ func main() {
 	budget := m.Budget{
 		Category: "Food",
 		Limit:    -1,
-		From:     time.Now(),
-		To:       time.Now().AddDate(0, 1, 0),
+		/*From:     time.Now(),
+		To:       time.Now().AddDate(0, 1, 0),*/
 	}
 
 	if err := CheckValid(transaction); err != nil {
@@ -160,4 +162,12 @@ func main() {
 	} else {
 		fmt.Println("Budget is valid")
 	}
+}
+
+func main() {
+	log.Println("Запуск Ledger...")
+
+	db.InitDB()
+
+	log.Println("Приложение Ledger успешно запущено!")
 }
