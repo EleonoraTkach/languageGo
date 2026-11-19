@@ -1,22 +1,27 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 
 	api "api-gateway/internal/api"
-	rep "ledger/repository"
+	"api-gateway/internal/ledger"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type Server struct {
-	storage *rep.Storage
+	ledger ledger.Client
 }
 
-func NewServer(storage *rep.Storage) *Server {
+func NewServer(client ledger.Client) *Server {
 	return &Server{
-		storage: storage,
+		ledger: client,
 	}
 }
 
@@ -33,12 +38,6 @@ func pingHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("pong"))
 }
 
-func notImplementedHandler(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusNotImplemented, map[string]string{
-		"error": "not implemented",
-	})
-}
-
 func (s *Server) createTransactionHandler(w http.ResponseWriter, r *http.Request) {
 	var req api.CreateTransactionRequest
 
@@ -49,39 +48,36 @@ func (s *Server) createTransactionHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	tx := req.ToTransaction()
-
-	if err := tx.Validate(); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
-			"error": err.Error(),
-		})
-		return
+	tx := ledger.Transaction{
+		Amount:      req.Amount,
+		Category:    req.Category,
+		Description: req.Description,
+		Date:        req.Date,
 	}
 
-	if err := s.storage.AddTransaction(tx); err != nil {
-		if errors.Is(err, rep.ErrBudgetExceeded) {
-			writeJSON(w, http.StatusConflict, map[string]string{
-				"error": "budget exceeded",
-			})
-			return
-		}
-
+	createdTx, err := s.ledger.AddTransaction(r.Context(), tx)
+	if err != nil {
 		log.Printf("add transaction: %v", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": "internal server error",
-		})
+		writeLedgerError(w, err)
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, api.NewTransactionResponse(tx))
+	writeJSON(w, http.StatusCreated, api.TransactionResponse{
+		ID:          strconv.FormatInt(createdTx.ID, 10),
+		Amount:      createdTx.Amount,
+		Category:    createdTx.Category,
+		Description: createdTx.Description,
+		Date:        createdTx.Date,
+	})
 }
 
 func (s *Server) listTransactionsHandler(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	transactions, err := s.storage.ListTransactions()
+	transactions, err := s.ledger.ListTransactions(r.Context())
 	if err != nil {
+		log.Printf("list transactions: %v", err)
 		http.Error(
 			w,
 			"Не удалось получить список транзакций",
@@ -91,8 +87,15 @@ func (s *Server) listTransactionsHandler(
 	}
 
 	response := make([]api.TransactionResponse, 0, len(transactions))
+
 	for _, tx := range transactions {
-		response = append(response, api.NewTransactionResponse(tx))
+		response = append(response, api.TransactionResponse{
+			ID:          strconv.FormatInt(tx.ID, 10),
+			Amount:      tx.Amount,
+			Category:    tx.Category,
+			Description: tx.Description,
+			Date:        tx.Date,
+		})
 	}
 
 	writeJSON(w, http.StatusOK, response)
@@ -111,33 +114,31 @@ func (s *Server) createBudgetHandler(
 		return
 	}
 
-	budget := req.ToBudget()
-
-	if err := budget.Validate(); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
-			"error": err.Error(),
-		})
-		return
+	budget := ledger.Budget{
+		Category: req.Category,
+		Limit:    req.Limit,
 	}
 
-	if err := s.storage.SetBudget(budget); err != nil {
+	createdBudget, err := s.ledger.SetBudget(r.Context(), budget)
+	if err != nil {
 		log.Printf("set budget: %v", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": "internal server error",
-		})
+		writeLedgerError(w, err)
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, api.NewBudgetResponse(budget))
+	writeJSON(w, http.StatusCreated, api.BudgetResponse{
+		Category: createdBudget.Category,
+		Limit:    createdBudget.Limit,
+	})
 }
 
 func (s *Server) listBudgetsHandler(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	budgets, err := s.storage.ListBudgets()
-
+	budgets, err := s.ledger.ListBudgets(r.Context())
 	if err != nil {
+		log.Printf("list budgets: %v", err)
 		http.Error(
 			w,
 			"Не удалось получить список бюджетов",
@@ -147,9 +148,42 @@ func (s *Server) listBudgetsHandler(
 	}
 
 	response := make([]api.BudgetResponse, 0, len(budgets))
+
 	for _, budget := range budgets {
-		response = append(response, api.NewBudgetResponse(budget))
+		response = append(response, api.BudgetResponse{
+			Category: budget.Category,
+			Limit:    budget.Limit,
+		})
 	}
 
 	writeJSON(w, http.StatusOK, response)
 }
+
+func writeLedgerError(w http.ResponseWriter, err error) {
+	switch status.Code(err) {
+	case codes.InvalidArgument:
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": status.Convert(err).Message(),
+		})
+
+	case codes.ResourceExhausted, codes.FailedPrecondition:
+		writeJSON(w, http.StatusConflict, map[string]string{
+			"error": "budget exceeded",
+		})
+
+	case codes.NotFound:
+		writeJSON(w, http.StatusNotFound, map[string]string{
+			"error": status.Convert(err).Message(),
+		})
+
+	default:
+		writeJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "internal server error",
+		})
+	}
+}
+
+// Защита от случайного использования context.Background()
+// в обработчиках: все RPC должны использовать r.Context().
+var _ = context.Background
+var _ = errors.Is

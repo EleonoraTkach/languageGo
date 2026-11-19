@@ -3,18 +3,29 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
-	"ledger/db"
-	rep "ledger/repository"
+	grpcclient "api-gateway/internal/grpc"
 )
 
 func main() {
-	db.InitDB()
+	ledgerAddr := os.Getenv("LEDGER_GRPC_ADDR")
+	if ledgerAddr == "" {
+		ledgerAddr = "localhost:50051"
+	}
 
-	storage := rep.NewStorage()
-	server := NewServer(storage)
+	ledgerClient, err := grpcclient.NewClient(ledgerAddr)
+	if err != nil {
+		log.Fatalf("failed to initialize ledger client: %v", err)
+	}
+	defer ledgerClient.Close()
+
+	server := NewServer(ledgerClient)
 	router := NewRouter(server)
 
 	log.Println("Gateway listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", router.SetupRoutes()))
+
+	if err := http.ListenAndServe(":8080", router.SetupRoutes()); err != nil {
+		log.Fatalf("Gateway server failed: %v", err)
+	}
 }

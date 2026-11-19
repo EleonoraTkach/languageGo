@@ -1,0 +1,67 @@
+
+syntax = "proto3";
+
+package ledger.v1;
+
+option go_package = "api-gateway/gen/ledger/v1;ledgerv1";
+
+import "google/protobuf/timestamp.proto";
+
+service LedgerService {
+  rpc Ping(PingRequest) returns (PingResponse);
+
+  rpc AddTransaction(AddTransactionRequest)
+      returns (TransactionResponse);
+
+  rpc ListTransactions(ListTransactionsRequest)
+      returns (ListTransactionsResponse);
+
+  rpc SetBudget(SetBudgetRequest)
+      returns (BudgetResponse);
+
+  rpc ListBudgets(ListBudgetsRequest)
+      returns (ListBudgetsResponse);
+}
+
+message PingRequest {}
+
+message PingResponse {
+  string status = 1;
+}
+
+message AddTransactionRequest {
+  double amount = 1;
+  string category = 2;
+  string description = 3;
+  google.protobuf.Timestamp date = 4;
+}
+
+message TransactionResponse {
+  int64 id = 1;
+  double amount = 2;
+  string category = 3;
+  string description = 4;
+  google.protobuf.Timestamp date = 5;
+}
+
+message ListTransactionsRequest {}
+
+message ListTransactionsResponse {
+  repeated TransactionResponse transactions = 1;
+}
+
+message SetBudgetRequest {
+  string category = 1;
+  double limit = 2;
+}
+
+message BudgetResponse {
+  string category = 1;
+  double limit = 2;
+}
+
+message ListBudgetsRequest {}
+
+message ListBudgetsResponse {
+  repeated BudgetResponse budgets = 1;
+}

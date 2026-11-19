@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   postgres:
@@ -12,6 +11,11 @@ services:
       - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cashapp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
 
   redis:
@@ -21,6 +25,55 @@ services:
       - "6379:6379"
     volumes:
       - redisdata:/data
+    restart: unless-stopped
+
+  migrate:
+    image: ghcr.io/pressly/goose:latest
+    container_name: ledger-migrate
+    command:
+      - -dir
+      - /migrations
+      - postgres
+      - postgres://postgres:postgres@postgres:5432/cashapp?sslmode=disable
+      - up
+    volumes:
+      - ./ledger/migrations:/migrations:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  ledger:
+    build:
+      context: ./ledger
+      dockerfile: Dockerfile
+    container_name: ledger
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_NAME: cashapp
+    ports:
+      - "50051:50051"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    environment:
+      LEDGER_GRPC_ADDR: ledger:50051
+    ports:
+      - "8080:8080"
+    depends_on:
+      - ledger
     restart: unless-stopped
 
 volumes:

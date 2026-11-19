@@ -1,36 +1,31 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-var DB *sql.DB
-
-func InitDB() {
-	dsn := getDSN()
-
-	var err error
-
-	DB, err = sql.Open("pgx", dsn)
+func NewDB(ctx context.Context) (*sql.DB, error) {
+	database, err := sql.Open("pgx", getDSN())
 	if err != nil {
-		log.Fatalf("Критическая ошибка при открытии пула соединений БД: %v", err)
+		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
-	DB.SetMaxOpenConns(10)
-	DB.SetMaxIdleConns(5)
-	DB.SetConnMaxLifetime(30 * time.Minute)
+	database.SetMaxOpenConns(10)
+	database.SetMaxIdleConns(5)
+	database.SetConnMaxLifetime(30 * time.Minute)
 
-	if err = DB.Ping(); err != nil {
-		log.Fatalf("Не удалось установить соединение с базой данных (Ping failed): %v", err)
+	if err := database.PingContext(ctx); err != nil {
+		_ = database.Close()
+		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	log.Println("Успешное подключение к базе данных Ledger установлено!")
+	return database, nil
 }
 
 func getDSN() string {
@@ -39,7 +34,7 @@ func getDSN() string {
 	}
 
 	host := getEnv("DB_HOST", "localhost")
-	port := getEnv("DB_PORT", "5432")
+	port := getEnv("DB_PORT", "5433")
 	user := getEnv("DB_USER", "postgres")
 	pass := getEnv("DB_PASS", "postgres")
 	name := getEnv("DB_NAME", "cashapp")

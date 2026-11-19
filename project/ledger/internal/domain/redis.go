@@ -1,4 +1,4 @@
-package models
+package domain
 
 type CategorySummary struct {
 	Category string  `json:"category"`
