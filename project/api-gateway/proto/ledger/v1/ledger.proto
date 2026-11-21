@@ -21,6 +21,9 @@ service LedgerService {
 
   rpc ListBudgets(ListBudgetsRequest)
       returns (ListBudgetsResponse);
+  
+  rpc GetReportSummary(GetReportSummaryRequest)
+    returns (GetReportSummaryResponse);
 }
 
 message PingRequest {}
@@ -64,4 +67,13 @@ message ListBudgetsRequest {}
 
 message ListBudgetsResponse {
   repeated BudgetResponse budgets = 1;
+}
+
+message GetReportSummaryRequest {
+  google.protobuf.Timestamp from = 1;
+  google.protobuf.Timestamp to = 2;
+}
+
+message GetReportSummaryResponse {
+  map<string, double> summary = 1;
 }

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	d "ledger/internal/domain"
 )
@@ -13,4 +14,5 @@ type Service interface {
 
 	AddTransaction(ctx context.Context, tx d.Transaction) (d.Transaction, error)
 	ListTransactions(ctx context.Context) ([]d.Transaction, error)
+	GetReportSummary(ctx context.Context, from time.Time, to time.Time) (map[string]float64, error)
 }

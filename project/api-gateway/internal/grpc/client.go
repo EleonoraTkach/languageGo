@@ -3,6 +3,7 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"time"
 
 	ledgerv1 "api-gateway/gen/ledger/v1"
 	"api-gateway/internal/ledger"
@@ -134,4 +135,23 @@ func (c *Client) ListBudgets(
 	}
 
 	return budgets, nil
+}
+
+func (c *Client) GetReportSummary(
+	ctx context.Context,
+	from time.Time,
+	to time.Time,
+) (map[string]float64, error) {
+	response, err := c.client.GetReportSummary(
+		ctx,
+		&ledgerv1.GetReportSummaryRequest{
+			From: timestamppb.New(from),
+			To:   timestamppb.New(to),
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return response.GetSummary(), nil
 }

@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
+	"sync"
+	"time"
 
 	d "ledger/internal/domain"
 )
@@ -84,4 +87,129 @@ func (s *LedgerService) ListTransactions(
 	ctx context.Context,
 ) ([]d.Transaction, error) {
 	return s.transactions.ListTransactions(ctx)
+}
+
+func (s *LedgerService) GetReportSummary(
+	ctx context.Context,
+	from time.Time,
+	to time.Time,
+) (map[string]float64, error) {
+	// Если запрос уже отменён, не начинаем расчёт.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	// Получаем все категории.
+	categories, err := s.transactions.GetCategories(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get categories: %w", err)
+	}
+
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if len(categories) == 0 {
+		return map[string]float64{}, nil
+	}
+
+	// Для каждой категории будет отдельный результат и ошибка.
+	results := make([]float64, len(categories))
+	errs := make([]error, len(categories))
+
+	// Позволяем остановить остальные запросы,
+	// если один из них завершился ошибкой.
+	workCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// Heartbeat.
+	heartbeatDone := make(chan struct{})
+	heartbeatStopped := make(chan struct{})
+
+	go func() {
+		defer close(heartbeatStopped)
+
+		ticker := time.NewTicker(400 * time.Millisecond)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				log.Println("Report calculation is in progress...")
+
+			case <-workCtx.Done():
+				return
+
+			case <-heartbeatDone:
+				return
+			}
+		}
+	}()
+
+	var wg sync.WaitGroup
+
+	// Запускаем отдельную горутину для каждой категории.
+	for i, category := range categories {
+		wg.Add(1)
+
+		go func(i int, category string) {
+			defer wg.Done()
+
+			if err := workCtx.Err(); err != nil {
+				errs[i] = err
+				return
+			}
+
+			total, err := s.transactions.GetSpentByCategoryAndPeriod(
+				workCtx,
+				category,
+				from,
+				to,
+			)
+
+			if err != nil {
+				errs[i] = err
+				cancel()
+				return
+			}
+
+			results[i] = total
+		}(i, category)
+	}
+
+	// Ждём завершения всех вычислений.
+	wg.Wait()
+
+	// Останавливаем heartbeat и дожидаемся его завершения.
+	close(heartbeatDone)
+	<-heartbeatStopped
+
+	// Проверяем отмену исходного HTTP/gRPC-запроса.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	// Сначала ищем настоящую ошибку, а не отмену
+	// соседнего запроса, вызванную этой ошибкой.
+	for _, err := range errs {
+		if err != nil &&
+			!errors.Is(err, context.Canceled) &&
+			!errors.Is(err, context.DeadlineExceeded) {
+			return nil, fmt.Errorf("failed to calculate report: %w", err)
+		}
+	}
+
+	for _, err := range errs {
+		if err != nil {
+			return nil, fmt.Errorf("report calculation interrupted: %w", err)
+		}
+	}
+
+	// Собираем итоговую map после завершения всех горутин.
+	summary := make(map[string]float64, len(categories))
+
+	for i, category := range categories {
+		summary[category] = results[i]
+	}
+
+	return summary, nil
 }

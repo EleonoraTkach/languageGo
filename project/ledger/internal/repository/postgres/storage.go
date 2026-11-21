@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	d "ledger/internal/domain"
 )
@@ -181,6 +182,70 @@ func (s *Storage) GetSpentByCategory(
 
 	if err != nil {
 		return 0, fmt.Errorf("failed to calculate expenses: %w", err)
+	}
+
+	return spent, nil
+}
+
+func (s *Storage) GetCategories(
+	ctx context.Context,
+) ([]string, error) {
+	rows, err := s.db.QueryContext(
+		ctx,
+		`SELECT DISTINCT category
+         FROM expenses
+         ORDER BY category`,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get categories: %w", err)
+	}
+	defer rows.Close()
+
+	var categories []string
+
+	for rows.Next() {
+		var category string
+
+		if err := rows.Scan(&category); err != nil {
+			return nil, fmt.Errorf("failed to scan category: %w", err)
+		}
+
+		categories = append(categories, category)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate categories: %w", err)
+	}
+
+	return categories, nil
+}
+
+func (s *Storage) GetSpentByCategoryAndPeriod(
+	ctx context.Context,
+	category string,
+	from time.Time,
+	to time.Time,
+) (float64, error) {
+	var spent float64
+
+	err := s.db.QueryRowContext(
+		ctx,
+		`SELECT COALESCE(SUM(amount), 0)
+         FROM expenses
+         WHERE category = $1
+           AND date >= $2
+           AND date < $3`,
+		category,
+		from,
+		to.AddDate(0, 0, 1),
+	).Scan(&spent)
+
+	if err != nil {
+		return 0, fmt.Errorf(
+			"failed to calculate expenses for category %q: %w",
+			category,
+			err,
+		)
 	}
 
 	return spent, nil

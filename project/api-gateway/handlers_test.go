@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -117,6 +118,33 @@ func (m *mockLedger) SetBudget(
 	m.budgets = append(m.budgets, budget)
 
 	return budget, nil
+}
+
+func (m *mockLedger) GetReportSummary(
+	ctx context.Context,
+	from time.Time,
+	to time.Time,
+) (map[string]float64, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	summary := make(map[string]float64)
+
+	for _, tx := range m.transactions {
+		if tx.Date.Before(from) {
+			continue
+		}
+
+		// Дата окончания включается в отчёт целиком.
+		if tx.Date.After(to.AddDate(0, 0, 1).Add(-time.Nanosecond)) {
+			continue
+		}
+
+		summary[tx.Category] += tx.Amount
+	}
+
+	return summary, nil
 }
 
 func (m *mockLedger) ListBudgets(
@@ -440,5 +468,97 @@ func TestTransactionsHTTP(t *testing.T) {
 		checkErrorJSON(t, rec, "")
 	})
 
-	_ = time.Time{}
+}
+
+func TestReportSummaryHTTP(t *testing.T) {
+	handler := newTestRouter()
+
+	// Подготавливаем данные для отчёта.
+	createTransaction := func(amount float64, category, date string) {
+		t.Helper()
+
+		body := `{
+			"amount": ` + strconv.FormatFloat(amount, 'f', 2, 64) + `,
+			"category": "` + category + `",
+			"description": "test",
+			"date": "` + date + `"
+		}`
+
+		rec := request(
+			handler,
+			http.MethodPost,
+			"/api/transactions",
+			body,
+		)
+
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("failed to create transaction: %s", rec.Body.String())
+		}
+	}
+
+	createTransaction(100, "еда", "2026-11-10T12:00:00Z")
+	createTransaction(200, "еда", "2026-11-15T12:00:00Z")
+	createTransaction(50, "транспорт", "2026-11-12T12:00:00Z")
+	createTransaction(300, "еда", "2026-12-01T12:00:00Z")
+
+	t.Run("ok", func(t *testing.T) {
+		rec := request(
+			handler,
+			http.MethodGet,
+			"/api/reports/summary?from=2026-11-01&to=2026-11-30",
+			"",
+		)
+
+		checkStatus(t, rec, http.StatusOK)
+		checkContentType(t, rec)
+
+		var summary map[string]float64
+		if err := json.Unmarshal(rec.Body.Bytes(), &summary); err != nil {
+			t.Fatalf("invalid JSON: %v", err)
+		}
+
+		if summary["еда"] != 300 {
+			t.Errorf("еда = %v, want 300", summary["еда"])
+		}
+
+		if summary["транспорт"] != 50 {
+			t.Errorf("транспорт = %v, want 50", summary["транспорт"])
+		}
+	})
+
+	t.Run("missing_from", func(t *testing.T) {
+		rec := request(
+			handler,
+			http.MethodGet,
+			"/api/reports/summary?to=2026-11-30",
+			"",
+		)
+
+		checkStatus(t, rec, http.StatusBadRequest)
+		checkErrorJSON(t, rec, "")
+	})
+
+	t.Run("invalid_date", func(t *testing.T) {
+		rec := request(
+			handler,
+			http.MethodGet,
+			"/api/reports/summary?from=wrong&to=2026-11-30",
+			"",
+		)
+
+		checkStatus(t, rec, http.StatusBadRequest)
+		checkErrorJSON(t, rec, "")
+	})
+
+	t.Run("from_after_to", func(t *testing.T) {
+		rec := request(
+			handler,
+			http.MethodGet,
+			"/api/reports/summary?from=2026-12-01&to=2026-11-01",
+			"",
+		)
+
+		checkStatus(t, rec, http.StatusBadRequest)
+		checkErrorJSON(t, rec, "")
+	})
 }

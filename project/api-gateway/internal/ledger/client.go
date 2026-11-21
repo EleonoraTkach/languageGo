@@ -24,4 +24,10 @@ type Client interface {
 	ListTransactions(ctx context.Context) ([]Transaction, error)
 	SetBudget(ctx context.Context, budget Budget) (Budget, error)
 	ListBudgets(ctx context.Context) ([]Budget, error)
+
+	GetReportSummary(
+		ctx context.Context,
+		from time.Time,
+		to time.Time,
+	) (map[string]float64, error)
 }

@@ -1,12 +1,11 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	api "api-gateway/internal/api"
 	"api-gateway/internal/ledger"
@@ -78,11 +77,7 @@ func (s *Server) listTransactionsHandler(
 	transactions, err := s.ledger.ListTransactions(r.Context())
 	if err != nil {
 		log.Printf("list transactions: %v", err)
-		http.Error(
-			w,
-			"Не удалось получить список транзакций",
-			http.StatusInternalServerError,
-		)
+		writeLedgerError(w, err)
 		return
 	}
 
@@ -138,12 +133,8 @@ func (s *Server) listBudgetsHandler(
 ) {
 	budgets, err := s.ledger.ListBudgets(r.Context())
 	if err != nil {
-		log.Printf("list budgets: %v", err)
-		http.Error(
-			w,
-			"Не удалось получить список бюджетов",
-			http.StatusInternalServerError,
-		)
+		log.Printf("list budget: %v", err)
+		writeLedgerError(w, err)
 		return
 	}
 
@@ -176,6 +167,16 @@ func writeLedgerError(w http.ResponseWriter, err error) {
 			"error": status.Convert(err).Message(),
 		})
 
+	case codes.DeadlineExceeded:
+		writeJSON(w, http.StatusGatewayTimeout, map[string]string{
+			"error": "request timeout",
+		})
+
+	case codes.Canceled:
+		writeJSON(w, http.StatusGatewayTimeout, map[string]string{
+			"error": "request canceled",
+		})
+
 	default:
 		writeJSON(w, http.StatusInternalServerError, map[string]string{
 			"error": "internal server error",
@@ -183,7 +184,65 @@ func writeLedgerError(w http.ResponseWriter, err error) {
 	}
 }
 
-// Защита от случайного использования context.Background()
-// в обработчиках: все RPC должны использовать r.Context().
-var _ = context.Background
-var _ = errors.Is
+func (s *Server) reportSummaryHandler(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet)
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{
+			"error": "method not allowed",
+		})
+		return
+	}
+
+	fromValue := r.URL.Query().Get("from")
+	if fromValue == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "query parameter 'from' is required",
+		})
+		return
+	}
+
+	toValue := r.URL.Query().Get("to")
+	if toValue == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "query parameter 'to' is required",
+		})
+		return
+	}
+
+	const dateLayout = "2006-01-02"
+
+	from, err := time.Parse(dateLayout, fromValue)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "invalid 'from' date: expected YYYY-MM-DD",
+		})
+		return
+	}
+
+	to, err := time.Parse(dateLayout, toValue)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "invalid 'to' date: expected YYYY-MM-DD",
+		})
+		return
+	}
+
+	if from.After(to) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "'from' date must not be after 'to' date",
+		})
+		return
+	}
+
+	summary, err := s.ledger.GetReportSummary(r.Context(), from, to)
+	if err != nil {
+		log.Printf("failed to get report summary: %v", err)
+		writeLedgerError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, summary)
+}

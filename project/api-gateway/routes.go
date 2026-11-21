@@ -1,6 +1,9 @@
 package main
 
-import "net/http"
+import (
+	"net/http"
+	"time"
+)
 
 type Router struct {
 	server *Server
@@ -45,5 +48,11 @@ func (rt *Router) SetupRoutes() http.Handler {
 		}
 	})
 
-	return loggingMiddleware(mux)
+	mux.HandleFunc("/api/reports/summary", rt.server.reportSummaryHandler)
+
+	// Таймаут применяется ко всем маршрутам.
+	handler := timeoutMiddleware(2 * time.Second)(mux)
+
+	// Логирование охватывает всю обработку запроса.
+	return loggingMiddleware(handler)
 }

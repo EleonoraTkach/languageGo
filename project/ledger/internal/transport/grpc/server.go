@@ -139,8 +139,50 @@ func (s *Server) ListBudgets(
 	return response, nil
 }
 
+func (s *Server) GetReportSummary(
+	ctx context.Context,
+	req *ledgerv1.GetReportSummaryRequest,
+) (*ledgerv1.GetReportSummaryResponse, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "request is required")
+	}
+
+	if req.From == nil || !req.From.IsValid() {
+		return nil, status.Error(codes.InvalidArgument, "invalid from date")
+	}
+
+	if req.To == nil || !req.To.IsValid() {
+		return nil, status.Error(codes.InvalidArgument, "invalid to date")
+	}
+
+	from := req.From.AsTime()
+	to := req.To.AsTime()
+
+	if from.After(to) {
+		return nil, status.Error(
+			codes.InvalidArgument,
+			"from date must not be after to date",
+		)
+	}
+
+	summary, err := s.service.GetReportSummary(ctx, from, to)
+	if err != nil {
+		return nil, mapError(err)
+	}
+
+	return &ledgerv1.GetReportSummaryResponse{
+		Summary: summary,
+	}, nil
+}
+
 func mapError(err error) error {
 	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		return status.Error(codes.DeadlineExceeded, "request timeout")
+
+	case errors.Is(err, context.Canceled):
+		return status.Error(codes.Canceled, "request canceled")
+
 	case errors.Is(err, d.ErrBudgetExceeded):
 		return status.Error(codes.ResourceExhausted, err.Error())
 
